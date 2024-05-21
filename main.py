@@ -55,9 +55,7 @@ def filter_movie_history(movie_history_df):
     remove_movies_df = movie_history_df.query('LastViewedOn.isnull() & AddedOn < @d1 | LastViewedOn < @d2')
     return remove_movies_df
     
-
-
-if __name__ == '__main__':
+def main():
     config = load_config()
 
     PLEX_URL = config['plex']['url']
@@ -79,3 +77,8 @@ if __name__ == '__main__':
     # Filter movies & histories to find which need removal
     remove_movies_df = filter_movie_history(movie_history_df)
     remove_movies_df.to_csv('remove_movies_df.csv')
+
+
+
+if __name__ == '__main__':
+    main()

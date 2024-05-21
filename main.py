@@ -52,7 +52,7 @@ def get_movie_history(plex):
 def filter_movie_history(movie_history_df):
     d1 = datetime.today().date() - timedelta(days = 365*1)
     d2 = datetime.today().date() - timedelta(days = 365*2)
-    remove_movies_df = movie_history_df.query('LastViewedOn.isnull() & AddedOn < @d1 | LastViewedOn < @d2').reset_index()
+    remove_movies_df = movie_history_df.query('LastViewedOn.isnull() & AddedOn < @d1 | LastViewedOn < @d2').reset_index(drop=True)
     return remove_movies_df
     
 def main():

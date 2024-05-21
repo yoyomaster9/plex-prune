@@ -45,14 +45,14 @@ def get_movie_history(plex):
     movie_history_df['ViewedOn'] = pd.to_datetime(movie_history_df['ViewedOn'])
     movie_history_df['AccountID'] = movie_history_df['AccountID'].astype('Int64')
     movie_history_df = movie_history_df.groupby(['Title','AddedOn','Path', 'Size (GB)']).agg({'AccountID': 'count', 'ViewedOn':'max'}).reset_index()
-    movie_history_df.rename({'AccountID': 'ViewCount', 'ViewedOn': 'LastViewedOn'})
+    movie_history_df = movie_history_df.rename(columns={'AccountID': 'ViewCount', 'ViewedOn': 'LastViewedOn'})
     return movie_history_df
 
 # Filter movies & histories to find which need removal
 def filter_movie_history(movie_history_df):
     d1 = datetime.today().date() - timedelta(days = 365*1)
     d2 = datetime.today().date() - timedelta(days = 365*2)
-    remove_movies_df = movie_history_df.query('ViewedOn.isnull() & AddedOn < @d | ViewedOn < @d2')
+    remove_movies_df = movie_history_df.query('LastViewedOn.isnull() & AddedOn < @d1 | LastViewedOn < @d2')
     return remove_movies_df
     
 

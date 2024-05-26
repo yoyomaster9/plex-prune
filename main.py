@@ -14,7 +14,7 @@ def load_config(filename: str = 'config.yaml') -> Dict:
         return yaml.safe_load(file)
 
 # Get all plex media & view counts
-def get_plex_df(PLEX_URL, PLEX_TOKEN):
+def get_plex_df(PLEX_URL: str, PLEX_TOKEN: str) -> pd.DataFrame:
     plex = PlexServer(PLEX_URL, PLEX_TOKEN)
 
     plex_df = pd.DataFrame(
@@ -32,13 +32,13 @@ def get_plex_df(PLEX_URL, PLEX_TOKEN):
     return plex_df
 
 # Filter movies & histories to find which need removal
-def filter_movie_history(movie_history_df):
+def filter_movie_history(movie_history_df: pd.DataFrame) -> pd.DataFrame:
     d1 = datetime.today().date() - timedelta(days = 365*1)
     d2 = datetime.today().date() - timedelta(days = 365*2)
     remove_movies_df = movie_history_df.query('LastViewedOn.isnull() & AddedOn < @d1 | LastViewedOn < @d2').reset_index(drop=True)
     return remove_movies_df
     
-def get_radarr_movies(RADARR_URL, RADARR_API_KEY):
+def get_radarr_movies(RADARR_URL: str, RADARR_API_KEY: str) -> pd.DataFrame:
     headers = {'X-Api-Key': RADARR_API_KEY}
     response = requests.get(f"{RADARR_URL}/api/v3/movie", headers=headers)
     radarr_df = pd.DataFrame(
@@ -47,19 +47,21 @@ def get_radarr_movies(RADARR_URL, RADARR_API_KEY):
         } 
         for x in response.json()
     )
+    return radarr_df
     
-def get_qbittorrent_files(QB_URL, QB_USERNAME, QB_PASSWORD):
+def get_qbittorrent_files(QB_URL: str, QB_USERNAME: str, QB_PASSWORD: str) -> pd.DataFrame:
     qb = qbittorrentapi.Client(host=QB_URL, username=QB_USERNAME, password=QB_PASSWORD)
     qb.auth_log_in()
     df = pd.DataFrame(
         {
             'torrent': torrent['name'],
-            'path': torrent['content_path'] if not os.path.isdir(torrent['content_path']) else f'{os.path.dirname(torrent['content_path'])}/{file['name']}'
+            'path': torrent['content_path'] if not os.path.isdir(torrent['content_path']) 
+                else f'{os.path.dirname(torrent['content_path'])}/{file['name']}'
         } 
         for torrent in qb.torrents_info()
         for file in qb.torrents_files(torrent['hash'])
     )
-    df['Size (GB)'] = df['path'].apply(lambda x: round(os.path.getsize(x) / (1024**3), 4))
+    df['size'] = df['path'].apply(lambda x: os.path.getsize(x))
     df['inode'] = df['path'].apply(lambda x: os.stat(x).st_ino)
     return df
 
@@ -76,11 +78,9 @@ def main():
     RADARR_URL = config['radarr']['url']
     RADARR_API_KEY = config['radarr']['api_key']
 
-    plex = PlexServer(PLEX_URL, PLEX_TOKEN)
-
-    # Get all plex movies & view counts
-    movie_history_df = get_movie_history(plex)
-    movie_history_df.to_csv('movie_history_df.csv')
+    # Get Plex files & history
+    plex_df = get_plex_df(PLEX_URL, PLEX_TOKEN)
+    plex_df.to_csv('plex_df.csv')
 
     # Get qBittorrent files
     qbittorrent_df = get_qbittorrent_files(QB_URL, QB_USERNAME, QB_PASSWORD)

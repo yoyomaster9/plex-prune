@@ -13,44 +13,23 @@ def load_config(filename: str = 'config.yaml') -> Dict:
     with open(filename, 'r') as file:
         return yaml.safe_load(file)
 
-# Get all plex movies & view counts
-def get_movie_history(plex):
+# Get all plex media & view counts
+def get_plex_df(PLEX_URL, PLEX_TOKEN):
+    plex = PlexServer(PLEX_URL, PLEX_TOKEN)
 
-    d = []
-    for library in ['Movies', 'TV Shows', 'Anime']:
-        for movie in plex.library.section(library).all():
-            if movie.history() == []:
-                d.append([
-                    movie.title,
-                    movie.addedAt.date(),
-                    movie.locations[0],
-                    os.path.dirname(movie.locations[0]), 
-                    round(os.path.getsize(movie.locations[0])/ (1024 * 1024 * 1024), 3),
-                    None,
-                    None
-                    ]
-                )
-            for history in movie.history():
-                d.append([
-                    movie.title,
-                    movie.addedAt.date(),
-                    movie.locations[0],
-                    os.path.dirname(movie.locations[0]),
-                    round(os.path.getsize(movie.locations[0])/ (1024 * 1024 * 1024), 3),
-                    os.stat(movie.locations[0]).st_ino
-                    history.accountID,
-                    history.viewedAt.date()
-                    ]
-                )
+    plex_df = pd.DataFrame(
+        {
+            'title': item.title,
+            'folder': item.locations[0] if item.type == 'show' else os.path.dirname(item.locations[0]),
+            'last_viewed': max([x.viewedAt.date() for x in item.history()], default=None),
+            'view_count': len([x.viewedAt.date() for x in item.history()]),
+            'added_on': item.addedAt.date()
+        }
+        for library in ['Anime', 'TV Shows', 'Movies']
+        for item in plex.library.section(library).all()
+    )
 
-
-    movie_history_df = pd.DataFrame(d, columns = ['Title','AddedOn','Path', 'FolderPath', 'Size (GB)', 'AccountID', 'ViewedOn'])
-    movie_history_df['AddedOn'] = pd.to_datetime(movie_history_df['AddedOn'])
-    movie_history_df['ViewedOn'] = pd.to_datetime(movie_history_df['ViewedOn'])
-    movie_history_df['AccountID'] = movie_history_df['AccountID'].astype('Int64')
-    movie_history_df = movie_history_df.groupby(['Title', 'AddedOn', 'Path', 'FolderPath', 'Size (GB)']).agg({'AccountID': 'count', 'ViewedOn':'max'}).reset_index()
-    movie_history_df = movie_history_df.rename(columns={'AccountID': 'ViewCount', 'ViewedOn': 'LastViewedOn'})
-    return movie_history_df
+    return plex_df
 
 # Filter movies & histories to find which need removal
 def filter_movie_history(movie_history_df):
@@ -62,8 +41,11 @@ def filter_movie_history(movie_history_df):
 def get_radarr_movies(RADARR_URL, RADARR_API_KEY):
     headers = {'X-Api-Key': RADARR_API_KEY}
     response = requests.get(f"{RADARR_URL}/api/v3/movie", headers=headers)
-    return pd.DataFrame(
-        {column: x[column] for column in ['id', 'title', 'monitored', 'sizeOnDisk',  'path', 'folderName']} for x in response.json()
+    radarr_df = pd.DataFrame(
+        {
+            column: x[column] for column in ['id', 'title', 'monitored', 'sizeOnDisk',  'path', 'folderName']
+        } 
+        for x in response.json()
     )
     
 def get_qbittorrent_files(QB_URL, QB_USERNAME, QB_PASSWORD):

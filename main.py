@@ -36,7 +36,13 @@ def get_radarr_movies(RADARR_URL: str, RADARR_API_KEY: str) -> pd.DataFrame:
     response = requests.get(f"{RADARR_URL}/api/v3/movie", headers=headers)
     radarr_df = pd.DataFrame(
         {
-            column: x[column] for column in ['id', 'title', 'monitored', 'sizeOnDisk', 'folderName']
+            # column: x[column] for column in ['id', 'title', 'monitored', 'sizeOnDisk', 'folderName']
+            'radarr_id': x['id'],
+            'title': x['title'],
+            'size': x['sizeOnDisk'],
+            'folder': x['folderName'],
+            'path': x['movieFile']['path'],
+            'inode': os.stat(x['movieFile']['path']).st_ino
         } 
         for x in response.json()
         ).rename({'id':'radarr_id', 'FolderName':'folder'})

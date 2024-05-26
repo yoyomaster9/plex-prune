@@ -92,24 +92,24 @@ def main():
 
 
     # Filter movies & histories to find which need removal
-    remove_movies_df = filter_movie_history(movie_history_df)
-    remove_movies_df.to_csv('remove_movies_df.csv')
+    # remove_movies_df = filter_movie_history(movie_history_df)
+    # remove_movies_df.to_csv('remove_movies_df.csv')
 
     # Collect Radarr entries & join
-    radarr_movies_df = get_radarr_movies(RADARR_URL, RADARR_API_KEY)
-    remove_movies_df = remove_movies_df.merge(radarr_movies_df[['id', 'folderName']], left_on=['FolderPath'], right_on=['folderName']) \
-        .drop('folderName', axis=1) \
-        .rename(columns={'id': 'radarr_id'})
+    # radarr_movies_df = get_radarr_movies(RADARR_URL, RADARR_API_KEY)
+    # remove_movies_df = remove_movies_df.merge(radarr_movies_df[['id', 'folderName']], left_on=['FolderPath'], right_on=['folderName']) \
+    #     .drop('folderName', axis=1) \
+    #     .rename(columns={'id': 'radarr_id'})
 
     # Delete entries from Radarr
-    remove_movies_df['radarr_response'] = \
-        remove_movies_df['radarr_id'] \
-        .apply(lambda x : requests.delete(
-            f"{RADARR_URL}/api/v3/movie/{x}?deleteFiles=true", 
-            headers= {'X-Api-Key': RADARR_API_KEY}
-            ) \
-            .status_code
-        )
+    # remove_movies_df['radarr_response'] = \
+    #     remove_movies_df['radarr_id'] \
+    #     .apply(lambda x : requests.delete(
+    #         f"{RADARR_URL}/api/v3/movie/{x}?deleteFiles=true", 
+    #         headers= {'X-Api-Key': RADARR_API_KEY}
+    #         ) \
+    #         .status_code
+    #     )
 
 if __name__ == '__main__':
     main()

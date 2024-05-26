@@ -36,7 +36,6 @@ def get_radarr_movies(RADARR_URL: str, RADARR_API_KEY: str) -> pd.DataFrame:
     response = requests.get(f"{RADARR_URL}/api/v3/movie", headers=headers)
     radarr_df = pd.DataFrame(
         {
-            # column: x[column] for column in ['id', 'title', 'monitored', 'sizeOnDisk', 'folderName']
             'radarr_id': x['id'],
             'title': x['title'],
             'size': x['sizeOnDisk'],
@@ -45,7 +44,8 @@ def get_radarr_movies(RADARR_URL: str, RADARR_API_KEY: str) -> pd.DataFrame:
             'inode': os.stat(x['movieFile']['path']).st_ino
         } 
         for x in response.json()
-        ).rename({'id':'radarr_id', 'FolderName':'folder'})
+        if x['hasFile']
+    )
     return radarr_df
     
 def get_qbittorrent_files(QB_URL: str, QB_USERNAME: str, QB_PASSWORD: str) -> pd.DataFrame:
@@ -59,6 +59,7 @@ def get_qbittorrent_files(QB_URL: str, QB_USERNAME: str, QB_PASSWORD: str) -> pd
         } 
         for torrent in qb.torrents_info()
         for file in qb.torrents_files(torrent['hash'])
+        if torrent['completion_on'] != 0
     )
     df['size'] = df['path'].apply(lambda x: os.path.getsize(x))
     df['inode'] = df['path'].apply(lambda x: os.stat(x).st_ino)

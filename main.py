@@ -31,22 +31,15 @@ def get_plex_df(PLEX_URL: str, PLEX_TOKEN: str) -> pd.DataFrame:
 
     return plex_df
 
-# Filter movies & histories to find which need removal
-def filter_movie_history(movie_history_df: pd.DataFrame) -> pd.DataFrame:
-    d1 = datetime.today().date() - timedelta(days = 365*1)
-    d2 = datetime.today().date() - timedelta(days = 365*2)
-    remove_movies_df = movie_history_df.query('LastViewedOn.isnull() & AddedOn < @d1 | LastViewedOn < @d2').reset_index(drop=True)
-    return remove_movies_df
-    
 def get_radarr_movies(RADARR_URL: str, RADARR_API_KEY: str) -> pd.DataFrame:
     headers = {'X-Api-Key': RADARR_API_KEY}
     response = requests.get(f"{RADARR_URL}/api/v3/movie", headers=headers)
     radarr_df = pd.DataFrame(
         {
-            column: x[column] for column in ['id', 'title', 'monitored', 'sizeOnDisk',  'path', 'folderName']
+            column: x[column] for column in ['id', 'title', 'monitored', 'sizeOnDisk', 'folderName']
         } 
         for x in response.json()
-    )
+        ).rename({'id':'radarr_id', 'FolderName':'folder'})
     return radarr_df
     
 def get_qbittorrent_files(QB_URL: str, QB_USERNAME: str, QB_PASSWORD: str) -> pd.DataFrame:
@@ -64,6 +57,13 @@ def get_qbittorrent_files(QB_URL: str, QB_USERNAME: str, QB_PASSWORD: str) -> pd
     df['size'] = df['path'].apply(lambda x: os.path.getsize(x))
     df['inode'] = df['path'].apply(lambda x: os.stat(x).st_ino)
     return df
+
+# Filter movies & histories to find which need removal
+def filter_movie_history(movie_history_df: pd.DataFrame) -> pd.DataFrame:
+    d1 = datetime.today().date() - timedelta(days = 365*1)
+    d2 = datetime.today().date() - timedelta(days = 365*2)
+    remove_movies_df = movie_history_df.query('LastViewedOn.isnull() & AddedOn < @d1 | LastViewedOn < @d2').reset_index(drop=True)
+    return remove_movies_df
 
 def main():
     config = load_config()

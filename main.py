@@ -17,29 +17,31 @@ def load_config(filename: str = 'config.yaml') -> Dict:
 def get_movie_history(plex):
 
     d = []
-    for movie in plex.library.section('Movies').all():
-        if movie.history() == []:
-            d.append([
-                movie.title,
-                movie.addedAt.date(),
-                movie.locations[0],
-                os.path.dirname(movie.locations[0]), 
-                round(os.path.getsize(movie.locations[0])/ (1024 * 1024 * 1024), 3),
-                None,
-                None
-                ]
-            )
-        for history in movie.history():
-            d.append([
-                movie.title,
-                movie.addedAt.date(),
-                movie.locations[0],
-                os.path.dirname(movie.locations[0]),
-                round(os.path.getsize(movie.locations[0])/ (1024 * 1024 * 1024), 3),
-                history.accountID,
-                history.viewedAt.date()
-                ]
-            )
+    for library in ['Movies', 'TV Shows', 'Anime']:
+        for movie in plex.library.section(library).all():
+            if movie.history() == []:
+                d.append([
+                    movie.title,
+                    movie.addedAt.date(),
+                    movie.locations[0],
+                    os.path.dirname(movie.locations[0]), 
+                    round(os.path.getsize(movie.locations[0])/ (1024 * 1024 * 1024), 3),
+                    None,
+                    None
+                    ]
+                )
+            for history in movie.history():
+                d.append([
+                    movie.title,
+                    movie.addedAt.date(),
+                    movie.locations[0],
+                    os.path.dirname(movie.locations[0]),
+                    round(os.path.getsize(movie.locations[0])/ (1024 * 1024 * 1024), 3),
+                    os.stat(movie.locations[0]).st_ino
+                    history.accountID,
+                    history.viewedAt.date()
+                    ]
+                )
 
 
     movie_history_df = pd.DataFrame(d, columns = ['Title','AddedOn','Path', 'FolderPath', 'Size (GB)', 'AccountID', 'ViewedOn'])
@@ -64,6 +66,20 @@ def get_radarr_movies(RADARR_URL, RADARR_API_KEY):
         {column: x[column] for column in ['id', 'title', 'monitored', 'sizeOnDisk',  'path', 'folderName']} for x in response.json()
     )
     
+def get_qbittorrent_files(QB_URL, QB_USERNAME, QB_PASSWORD):
+    qb = qbittorrentapi.Client(host=QB_URL, username=QB_USERNAME, password=QB_PASSWORD)
+    qb.auth_log_in()
+    df = pd.DataFrame(
+        {
+            'torrent': torrent['name'],
+            'path': torrent['content_path'] if not os.path.isdir(torrent['content_path']) else f'{os.path.dirname(torrent['content_path'])}/{file['name']}'
+        } 
+        for torrent in qb.torrents_info()
+        for file in qb.torrents_files(torrent['hash'])
+    )
+    df['Size (GB)'] = df['path'].apply(lambda x: round(os.path.getsize(x) / (1024**3), 4))
+    df['inode'] = df['path'].apply(lambda x: os.stat(x).st_ino)
+    return df
 
 def main():
     config = load_config()
@@ -84,6 +100,15 @@ def main():
     movie_history_df = get_movie_history(plex)
     movie_history_df.to_csv('movie_history_df.csv')
 
+    # Get qBittorrent files
+    qbittorrent_df = get_qbittorrent_files(QB_URL, QB_USERNAME, QB_PASSWORD)
+    qbittorrent_df.to_csv('qbittorrent_df.csv')
+
+    # Get Radarr movies
+    radarr_movies_df = get_radarr_movies(RADARR_URL, RADARR_API_KEY)
+    radarr_movies_df.to_csv('radarr_movies_df.csv')
+
+
     # Filter movies & histories to find which need removal
     remove_movies_df = filter_movie_history(movie_history_df)
     remove_movies_df.to_csv('remove_movies_df.csv')
@@ -95,11 +120,11 @@ def main():
         .rename(columns={'id': 'radarr_id'})
 
     # Delete entries from Radarr
-    remove_movies_df['radarr_delete_response'] = \
-        remove_movies_df['radarr_id'].apply(
-            lambda x : requests.delete(
-                f"{RADARR_URL}/api/v3/movie/{x}?deleteFiles=true",
-                headers= {'X-Api-Key': RADARR_API_KEY}
+    remove_movies_df['radarr_response'] = \
+        remove_movies_df['radarr_id'] \
+        .apply(lambda x : requests.delete(
+            f"{RADARR_URL}/api/v3/movie/{x}?deleteFiles=true", 
+            headers= {'X-Api-Key': RADARR_API_KEY}
             ) \
             .status_code
         )

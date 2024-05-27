@@ -67,14 +67,55 @@ def get_qbittorrent_df(QB_URL: str, QB_USERNAME: str, QB_PASSWORD: str) -> pd.Da
     qb.auth_log_out()
     return qbittorrent_df
 
-# Filter movies & histories to find which need removal
-def stale_movie_filter(df: pd.DataFrame) -> pd.DataFrame:
+def prune_movies(radarr_df: pd.DataFrame, qbittorrent_df: pd.DataFrame, plex_df: pd.DataFrame, 
+                 RADARR_URL: str, RADARR_API_KEY: str, QB_USERNAME: str, QB_PASSWORD: str, QB_URL: str, 
+                 delete=False) -> pd.DataFrame:
     d1 = datetime.today().date() - timedelta(days = 365*1)
     d2 = datetime.today().date() - timedelta(days = 365*2)
-    filtered_df = df.query('last_viewed.isnull() & added_on < @d1 | last_viewed < @d2').reset_index(drop=True)
-    return filtered_df
+    prune_movies_df = radarr_df.merge(
+        plex_df, 
+        how='inner', 
+        on='folder', 
+        suffixes=('_radarr', '_plex')
+    ) \
+    .merge(
+        qbittorrent_df, 
+        how='left', 
+        on='inode', 
+        suffixes=('_radarr', '_qbt')
+    ) \
+    .query(f'last_viewed.isnull() & added_on < @d1 | last_viewed < @d2') \
+    .reset_index(drop=True)
+    
+    # Delete movies from Radarr & qbt
+    if delete:
+        prune_movies_df['response_radarr'] = \
+            prune_movies_df['id_radarr'] \
+            .apply(lambda x : requests.delete(
+                f"{RADARR_URL}/api/v3/movie/{x}?deleteFiles=true", 
+                headers= {'X-Api-Key': RADARR_API_KEY}
+                ) \
+                .status_code
+            )
+        
+        qb = qbittorrentapi.Client(host=QB_URL, username=QB_USERNAME, password=QB_PASSWORD)
+        qb.auth_log_in()
+        prune_movies_df['hash_qbt'].apply(lambda hash_qbt: qb.torrents_delete(delete_files=True, torrent_hashes=hash_qbt))
+        qb.auth.log_out()
+
+    else:
+        prune_movies_df['response_radarr'] = 'Test'
+
+
+
+    return prune_movies_df
 
 def main():
+    if not os.path.exists('logs'):
+        os.mkdir('logs')
+        os.mkdir('logs/prune_movies')
+        os.mkdir('logs/prune_tv_shows')
+
     config = load_config()
 
     PLEX_URL = config['plex']['url']
@@ -99,26 +140,14 @@ def main():
     radarr_df = get_radarr_df(RADARR_URL, RADARR_API_KEY)
     radarr_df.to_csv('radarr_movies_df.csv')
 
+    # Prune movies from Radarr & qBittorrent
+    prune_movies_df = prune_movies(radarr_df, qbittorrent_df, plex_df,
+                                   RADARR_URL, RADARR_API_KEY, QB_USERNAME, QB_PASSWORD, QB_URL,
+                                   delete=True)
+    if not os.path.exists('logs'):
+        os.mkdir('logs')
+    prune_movies_df.to_csv(f'logs/prune_movies/{datetime.now().date().isoformat()}.csv')
 
-    # Filter movies & histories to find which need removal
-    # remove_movies_df = filter_movie_history(movie_history_df)
-    # remove_movies_df.to_csv('remove_movies_df.csv')
-
-    # Collect Radarr entries & join
-    # radarr_movies_df = get_radarr_movies(RADARR_URL, RADARR_API_KEY)
-    # remove_movies_df = remove_movies_df.merge(radarr_movies_df[['id', 'folderName']], left_on=['FolderPath'], right_on=['folderName']) \
-    #     .drop('folderName', axis=1) \
-    #     .rename(columns={'id': 'radarr_id'})
-
-    # Delete entries from Radarr
-    # remove_movies_df['radarr_response'] = \
-    #     remove_movies_df['radarr_id'] \
-    #     .apply(lambda x : requests.delete(
-    #         f"{RADARR_URL}/api/v3/movie/{x}?deleteFiles=true", 
-    #         headers= {'X-Api-Key': RADARR_API_KEY}
-    #         ) \
-    #         .status_code
-    #     )
 
 if __name__ == '__main__':
     main()

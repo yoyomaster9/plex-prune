@@ -149,5 +149,8 @@ def main():
     prune_movies_df.to_csv(f'logs/prune_movies/{datetime.now().date().isoformat()}.csv')
 
 
+    return prune_movies_df
+
 if __name__ == '__main__':
-    main()
+    prune_movies_df = main()
+    print(f'Movies deleted: \n  Count: {len(prune_movies_df)}\n  Size (GB): {round(sum(prune_movies_df['size_radarr'])/(1024**3), 3)}')

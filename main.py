@@ -36,7 +36,7 @@ def get_radarr_df(RADARR_URL: str, RADARR_API_KEY: str) -> pd.DataFrame:
     response = requests.get(f"{RADARR_URL}/api/v3/movie", headers=headers)
     radarr_df = pd.DataFrame(
         {
-            'radarr_id': x['id'],
+            'id_radarr': x['id'],
             'title': x['title'],
             'size': x['sizeOnDisk'],
             'folder': x['folderName'],
@@ -66,11 +66,11 @@ def get_qbittorrent_df(QB_URL: str, QB_USERNAME: str, QB_PASSWORD: str) -> pd.Da
     return qbittorrent_df
 
 # Filter movies & histories to find which need removal
-def filter_movie_history(movie_history_df: pd.DataFrame) -> pd.DataFrame:
+def stale_movie_filter(df: pd.DataFrame) -> pd.DataFrame:
     d1 = datetime.today().date() - timedelta(days = 365*1)
     d2 = datetime.today().date() - timedelta(days = 365*2)
-    remove_movies_df = movie_history_df.query('LastViewedOn.isnull() & AddedOn < @d1 | LastViewedOn < @d2').reset_index(drop=True)
-    return remove_movies_df
+    filtered_df = df.query('LastViewedOn.isnull() & AddedOn < @d1 | LastViewedOn < @d2').reset_index(drop=True)
+    return filtered_df
 
 def main():
     config = load_config()

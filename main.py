@@ -53,6 +53,7 @@ def get_qbittorrent_df(QB_URL: str, QB_USERNAME: str, QB_PASSWORD: str) -> pd.Da
     qb.auth_log_in()
     qbittorrent_df = pd.DataFrame(
         {
+            'hash_qbt': torrent['hash'],
             'torrent': torrent['name'],
             'path': torrent['content_path'] if not os.path.isdir(torrent['content_path']) 
                 else f'{os.path.dirname(torrent['content_path'])}/{file['name']}'
@@ -63,13 +64,14 @@ def get_qbittorrent_df(QB_URL: str, QB_USERNAME: str, QB_PASSWORD: str) -> pd.Da
     )
     qbittorrent_df['size'] = qbittorrent_df['path'].apply(lambda x: os.path.getsize(x))
     qbittorrent_df['inode'] = qbittorrent_df['path'].apply(lambda x: os.stat(x).st_ino)
+    qb.auth_log_out()
     return qbittorrent_df
 
 # Filter movies & histories to find which need removal
 def stale_movie_filter(df: pd.DataFrame) -> pd.DataFrame:
     d1 = datetime.today().date() - timedelta(days = 365*1)
     d2 = datetime.today().date() - timedelta(days = 365*2)
-    filtered_df = df.query('LastViewedOn.isnull() & AddedOn < @d1 | LastViewedOn < @d2').reset_index(drop=True)
+    filtered_df = df.query('last_viewed.isnull() & added_on < @d1 | last_viewed < @d2').reset_index(drop=True)
     return filtered_df
 
 def main():

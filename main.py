@@ -94,8 +94,8 @@ def main():
     qbittorrent_df.to_csv('qbittorrent_df.csv')
 
     # Get Radarr movies
-    radarr_movies_df = get_radarr_df(RADARR_URL, RADARR_API_KEY)
-    radarr_movies_df.to_csv('radarr_movies_df.csv')
+    radarr_df = get_radarr_df(RADARR_URL, RADARR_API_KEY)
+    radarr_df.to_csv('radarr_movies_df.csv')
 
 
     # Filter movies & histories to find which need removal

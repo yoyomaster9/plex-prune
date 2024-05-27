@@ -31,7 +31,7 @@ def get_plex_df(PLEX_URL: str, PLEX_TOKEN: str) -> pd.DataFrame:
 
     return plex_df
 
-def get_radarr_movies(RADARR_URL: str, RADARR_API_KEY: str) -> pd.DataFrame:
+def get_radarr_df(RADARR_URL: str, RADARR_API_KEY: str) -> pd.DataFrame:
     headers = {'X-Api-Key': RADARR_API_KEY}
     response = requests.get(f"{RADARR_URL}/api/v3/movie", headers=headers)
     radarr_df = pd.DataFrame(
@@ -48,10 +48,10 @@ def get_radarr_movies(RADARR_URL: str, RADARR_API_KEY: str) -> pd.DataFrame:
     )
     return radarr_df
     
-def get_qbittorrent_files(QB_URL: str, QB_USERNAME: str, QB_PASSWORD: str) -> pd.DataFrame:
+def get_qbittorrent_df(QB_URL: str, QB_USERNAME: str, QB_PASSWORD: str) -> pd.DataFrame:
     qb = qbittorrentapi.Client(host=QB_URL, username=QB_USERNAME, password=QB_PASSWORD)
     qb.auth_log_in()
-    df = pd.DataFrame(
+    qbittorrent_df = pd.DataFrame(
         {
             'torrent': torrent['name'],
             'path': torrent['content_path'] if not os.path.isdir(torrent['content_path']) 
@@ -61,9 +61,9 @@ def get_qbittorrent_files(QB_URL: str, QB_USERNAME: str, QB_PASSWORD: str) -> pd
         for file in qb.torrents_files(torrent['hash'])
         if torrent['completion_on'] != 0
     )
-    df['size'] = df['path'].apply(lambda x: os.path.getsize(x))
-    df['inode'] = df['path'].apply(lambda x: os.stat(x).st_ino)
-    return df
+    qbittorrent_df['size'] = qbittorrent_df['path'].apply(lambda x: os.path.getsize(x))
+    qbittorrent_df['inode'] = qbittorrent_df['path'].apply(lambda x: os.stat(x).st_ino)
+    return qbittorrent_df
 
 # Filter movies & histories to find which need removal
 def filter_movie_history(movie_history_df: pd.DataFrame) -> pd.DataFrame:
@@ -90,11 +90,11 @@ def main():
     plex_df.to_csv('plex_df.csv')
 
     # Get qBittorrent files
-    qbittorrent_df = get_qbittorrent_files(QB_URL, QB_USERNAME, QB_PASSWORD)
+    qbittorrent_df = get_qbittorrent_df(QB_URL, QB_USERNAME, QB_PASSWORD)
     qbittorrent_df.to_csv('qbittorrent_df.csv')
 
     # Get Radarr movies
-    radarr_movies_df = get_radarr_movies(RADARR_URL, RADARR_API_KEY)
+    radarr_movies_df = get_radarr_df(RADARR_URL, RADARR_API_KEY)
     radarr_movies_df.to_csv('radarr_movies_df.csv')
 
 

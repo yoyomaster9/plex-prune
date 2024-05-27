@@ -1,0 +1,15 @@
+plex:
+  url: http://192.168.0.100:32400
+  token: super-secret-token
+qbittorrent:
+  url: http://192.168.0.100:9080
+  username: foo
+  password: bar
+sonarr:
+  url: http://192.168.0.100:8989
+  api_key: super-secret-api
+radarr:
+  url: http://192.168.0.100:7878
+  api_key: super-secret-api
+
+

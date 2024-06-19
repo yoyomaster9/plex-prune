@@ -143,7 +143,7 @@ def main():
     # Prune movies from Radarr & qBittorrent
     prune_movies_df = prune_movies(radarr_df, qbittorrent_df, plex_df,
                                    RADARR_URL, RADARR_API_KEY, QB_USERNAME, QB_PASSWORD, QB_URL,
-                                   delete=True)
+                                   delete=False)
     if not os.path.exists('logs'):
         os.mkdir('logs')
     prune_movies_df.to_csv(f'logs/prune_movies/{datetime.now().date().isoformat()}.csv')

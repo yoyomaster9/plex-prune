@@ -1,3 +1,4 @@
+#!.venv/bin/python
 import yaml
 import pandas as pd
 from datetime import datetime, timedelta
@@ -6,7 +7,7 @@ from plexapi.server import PlexServer
 import qbittorrentapi
 import requests
 import os
-
+import argparse
 
 # Load configuration from YAML file
 def load_config(filename: str = 'config.yaml') -> Dict:
@@ -33,7 +34,7 @@ def get_plex_df(PLEX_URL: str, PLEX_TOKEN: str) -> pd.DataFrame:
 
 def get_radarr_df(RADARR_URL: str, RADARR_API_KEY: str) -> pd.DataFrame:
     headers = {'X-Api-Key': RADARR_API_KEY}
-    response = requests.get(f"{RADARR_URL}/api/v3/movie", headers=headers)
+    response = requests.get(f'{RADARR_URL}/api/v3/movie', headers=headers)
     radarr_df = pd.DataFrame(
         {
             'id_radarr': x['id'],
@@ -92,7 +93,7 @@ def prune_movies(radarr_df: pd.DataFrame, qbittorrent_df: pd.DataFrame, plex_df:
         prune_movies_df['response_radarr'] = \
             prune_movies_df['id_radarr'] \
             .apply(lambda x : requests.delete(
-                f"{RADARR_URL}/api/v3/movie/{x}?deleteFiles=true", 
+                f'{RADARR_URL}/api/v3/movie/{x}?deleteFiles=true', 
                 headers= {'X-Api-Key': RADARR_API_KEY}
                 ) \
                 .status_code
@@ -110,7 +111,7 @@ def prune_movies(radarr_df: pd.DataFrame, qbittorrent_df: pd.DataFrame, plex_df:
 
     return prune_movies_df
 
-def main():
+def main(delete_media:bool) -> pd.DataFrame:
     if not os.path.exists('logs'):
         os.mkdir('logs')
         os.mkdir('logs/prune_movies')
@@ -143,7 +144,7 @@ def main():
     # Prune movies from Radarr & qBittorrent
     prune_movies_df = prune_movies(radarr_df, qbittorrent_df, plex_df,
                                    RADARR_URL, RADARR_API_KEY, QB_USERNAME, QB_PASSWORD, QB_URL,
-                                   delete=True)
+                                   delete=delete_media)
     if not os.path.exists('logs'):
         os.mkdir('logs')
     prune_movies_df.to_csv(f'logs/prune_movies/{datetime.now().date().isoformat()}.csv')
@@ -151,6 +152,34 @@ def main():
 
     return prune_movies_df
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-v', '--verbose', 
+                        help='Show all output', 
+                        action='store_true') 
+    parser.add_argument('-r', '--remove', 
+                        help='Remove stale media', 
+                        action='store_true')
+    parser.add_argument('--sonarr', 
+                        help='Flag Sonarr media', 
+                        action='store_true')
+    parser.add_argument('--radarr',
+                        help='Flag Radarr media',
+                        action='store_true')
+    args = parser.parse_args()
+
+    return args
+
+
 if __name__ == '__main__':
-    prune_movies_df = main()
-    print(f'Movies deleted: \n  Count: {len(prune_movies_df)}\n  Size (GB): {round(sum(prune_movies_df['size_radarr'])/(1024**3), 3)}')
+
+    args = parse_args()
+
+    if not args.remove:
+        print('TEST RUN!! No files will be deleted.')
+    if args.radarr or (not args.radarr and not args.sonarr):
+        prune_movies_df = main(delete_media=args.remove)
+        print(f'Movies deleted: \n  Count: {len(prune_movies_df)}\n  Size (GB): {round(sum(prune_movies_df['size_radarr'])/(1024**3), 3)}')
+    if args.sonarr or (not args.radarr and not args.sonarr):
+        # prune_tv_df().....
+        pass

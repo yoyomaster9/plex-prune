@@ -177,7 +177,6 @@ def parse_args():
                         help='Flag Radarr media',
                         action='store_true')
     args = parser.parse_args()
-    logging.basicConfig(level=args.loglevel)
     return args
 
 
@@ -185,11 +184,18 @@ if __name__ == '__main__':
 
     args = parse_args()
 
+    logging.basicConfig(level=args.loglevel, 
+                        format='%(asctime)s - %(levelname)s: %(message)s')
+    logger = logging.getLogger()
+
     if not args.remove:
-        print('TEST RUN!! No files will be deleted.')
+        logger.info('TEST RUN!! No files will be deleted.')
+
     if args.radarr or (not args.radarr and not args.sonarr):
         prune_movies_df = main(delete_media=args.remove)
-        print(f'Movies deleted: \n  Count: {len(prune_movies_df)}\n  Size (GB): {round(sum(prune_movies_df['size_radarr'])/(1024**3), 3)}')
+        logger.warning(f'\n  Movies Deleted: \n    Count: {len(prune_movies_df)}\n    Size (GB): {round(sum(prune_movies_df['size_radarr'])/(1024**3), 2)}')
+        logger.info(f'\n  List: \n    {'\n    '.join([f'{movie} ({size/1024**3:.2f} GB)' for (movie, size) in zip(prune_movies_df['title_radarr'], prune_movies_df["size_radarr"])])}')
+
     if args.sonarr or (not args.radarr and not args.sonarr):
         # prune_tv_df().....
         pass

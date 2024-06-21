@@ -2,3 +2,5 @@ __pycache__
 config.yaml
 *.csv
 logs
+.venv
+*.ipynb

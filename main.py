@@ -159,6 +159,7 @@ def parse_args():
     parser.add_argument('-v', '--verbose', 
                         help='Show info level logs', 
                         action='store_const',
+                        dest='loglevel',
                         default=logging.WARNING,
                         const=logging.INFO) 
     parser.add_argument('-d', '--debug',

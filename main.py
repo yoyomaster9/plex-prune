@@ -8,6 +8,8 @@ import qbittorrentapi
 import requests
 import os
 import argparse
+import logging
+
 
 # Load configuration from YAML file
 def load_config(filename: str = 'config.yaml') -> Dict:
@@ -155,8 +157,15 @@ def main(delete_media:bool) -> pd.DataFrame:
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', 
-                        help='Show all output', 
-                        action='store_true') 
+                        help='Show info level logs', 
+                        action='store_const',
+                        default=logging.WARNING,
+                        const=logging.INFO) 
+    parser.add_argument('-d', '--debug',
+                        help='Show debug level logs',
+                        action='store_const',
+                        dest='loglevel',
+                        const=logging.DEBUG)
     parser.add_argument('-r', '--remove', 
                         help='Remove stale media', 
                         action='store_true')
@@ -167,7 +176,7 @@ def parse_args():
                         help='Flag Radarr media',
                         action='store_true')
     args = parser.parse_args()
-
+    logging.basicConfig(level=args.loglevel)
     return args
 
 

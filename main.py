@@ -188,8 +188,10 @@ if __name__ == '__main__':
                         format='%(asctime)s - %(levelname)s: %(message)s')
     logger = logging.getLogger()
 
-    if not args.remove:
-        logger.info('TEST RUN!! No files will be deleted.')
+    if args.remove:
+        logger.warning('Flagging files for deletion.')
+    else:
+        logger.warning('TEST RUN!! No files will be deleted.')
 
     if args.radarr or (not args.radarr and not args.sonarr):
         prune_movies_df = main(delete_media=args.remove)

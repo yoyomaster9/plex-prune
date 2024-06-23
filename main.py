@@ -51,6 +51,39 @@ def get_radarr_df(RADARR_URL: str, RADARR_API_KEY: str) -> pd.DataFrame:
     )
     return radarr_df
     
+def get_sonarr_df(SONARR_URL: str, SONARR_API_KEY: str) -> pd.DataFrame:
+    headers = {'X-Api-Key': SONARR_API_KEY}
+
+    series_df = pd.DataFrame(
+        {
+            'seriesId': x['id'],
+            'title': x['title'],
+            'status': x['status'],
+            'ended': x['ended'],
+            'seriesfolder': x['path'], 
+            'monitored': x['monitored'],
+            'added': x['added'],
+            'nextAiring': x.get('nextAiring'),
+            'previousAiring': x.get('previousAiring')
+
+        } 
+        for x in requests.get(f'{SONARR_URL}/api/v3/series', headers=headers).json()
+    )
+    episode_df = pd.DataFrame(
+        {
+            'episodeFileId': x['id'],
+            'seriesId': x['seriesId'],
+            'path': x['path'],
+            'size': x['size'],
+            'inode': os.stat(x['path']).st_ino
+        }
+        for seriesId in series_df['seriesId']
+        for x in requests.get(f'{SONARR_URL}/api/v3/episodefile', headers=headers, params={'seriesId': seriesId}).json()
+    )
+
+    sonarr_df = series_df.merge(episode_df, how='left', on='seriesId')
+    return sonarr_df
+
 def get_qbittorrent_df(QB_URL: str, QB_USERNAME: str, QB_PASSWORD: str) -> pd.DataFrame:
     qb = qbittorrentapi.Client(host=QB_URL, username=QB_USERNAME, password=QB_PASSWORD)
     qb.auth_log_in()
@@ -109,8 +142,6 @@ def prune_movies(radarr_df: pd.DataFrame, qbittorrent_df: pd.DataFrame, plex_df:
     else:
         prune_movies_df['response_radarr'] = 'Test'
 
-
-
     return prune_movies_df
 
 def main(delete_media:bool) -> pd.DataFrame:
@@ -142,6 +173,10 @@ def main(delete_media:bool) -> pd.DataFrame:
     # Get Radarr movies
     radarr_df = get_radarr_df(RADARR_URL, RADARR_API_KEY)
     radarr_df.to_csv('radarr_df.csv', index=False)
+
+    # Get Sonarr series
+    sonarr_df = get_sonarr_df(SONARR_URL, SONARR_API_KEY)
+    sonarr_df.to_csv('sonarr_df.csv', index=False)
 
     # Prune movies from Radarr & qBittorrent
     prune_movies_df = prune_movies(radarr_df, qbittorrent_df, plex_df,

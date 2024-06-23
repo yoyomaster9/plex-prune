@@ -133,15 +133,15 @@ def main(delete_media:bool) -> pd.DataFrame:
 
     # Get Plex files & history
     plex_df = get_plex_df(PLEX_URL, PLEX_TOKEN)
-    plex_df.to_csv('plex_df.csv')
+    plex_df.to_csv('plex_df.csv', index=False)
 
     # Get qBittorrent files
     qbittorrent_df = get_qbittorrent_df(QB_URL, QB_USERNAME, QB_PASSWORD)
-    qbittorrent_df.to_csv('qbittorrent_df.csv')
+    qbittorrent_df.to_csv('qbittorrent_df.csv', index=False)
 
     # Get Radarr movies
     radarr_df = get_radarr_df(RADARR_URL, RADARR_API_KEY)
-    radarr_df.to_csv('radarr_movies_df.csv')
+    radarr_df.to_csv('radarr_df.csv', index=False)
 
     # Prune movies from Radarr & qBittorrent
     prune_movies_df = prune_movies(radarr_df, qbittorrent_df, plex_df,
@@ -149,7 +149,7 @@ def main(delete_media:bool) -> pd.DataFrame:
                                    delete=delete_media)
     if not os.path.exists('logs'):
         os.mkdir('logs')
-    prune_movies_df.to_csv(f'logs/prune_movies/{datetime.now().date().isoformat()}.csv')
+    prune_movies_df.to_csv(f'logs/prune_movies/{datetime.now().date().isoformat()}.csv', index=False)
 
 
     return prune_movies_df

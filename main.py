@@ -140,9 +140,16 @@ def prune_movies(radarr_df: pd.DataFrame, qbittorrent_df: pd.DataFrame, plex_df:
         qb.auth.log_out()
 
     else:
-        prune_movies_df['response_radarr'] = 'Test'
+        prune_movies_df['response_radarr'] = 'Not Deleted'
 
     return prune_movies_df
+
+def prune_series(radarr_df: pd.DataFrame, qbittorrent_df: pd.DataFrame, plex_df: pd.DataFrame, 
+                 RADARR_URL: str, RADARR_API_KEY: str, QB_USERNAME: str, QB_PASSWORD: str, QB_URL: str, 
+                 delete=False) -> pd.DataFrame:
+    
+    # Placeholder -- DO THIS
+    return pd.DataFrame
 
 def main(delete_media:bool) -> pd.DataFrame:
     if not os.path.exists('logs'):
@@ -187,6 +194,13 @@ def main(delete_media:bool) -> pd.DataFrame:
     prune_movies_df.to_csv(f'logs/prune_movies/{datetime.now().date().isoformat()}.csv', index=False)
 
 
+    prune_series_df = prune_series(sonarr_df, qbittorrent_df, plex_df,
+                                   SONARR_URL, SONARR_API_KEY, QB_USERNAME, QB_PASSWORD, QB_URL,
+                                   delete=delete_media)
+    
+    prune_series_df.to_csv(f'logs/prune_movies/{datetime.now().date().isoformat()}.csv', index=False)
+
+    # consider combining prune_movies_df and prune_series_df
     return prune_movies_df
 
 def parse_args():

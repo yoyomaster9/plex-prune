@@ -10,6 +10,7 @@ Movies
 - Added 1 year ago & never watched
 - Last watched 2 years ago
 
-TV Shows
-- Added 1 year ago & never watched
-- Shows that have ended and haven't been watched in 2 years
+TV Series
+- Oldest episode added 1 year ago & never watched
+- Series that have ended and haven't been watched in 2 years
+- Series that aren't monitored and haven't been watched in 2 years

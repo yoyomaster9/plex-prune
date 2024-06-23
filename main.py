@@ -144,10 +144,9 @@ def prune_movies(radarr_df: pd.DataFrame, qbittorrent_df: pd.DataFrame, plex_df:
 
     return prune_movies_df
 
-def prune_series(radarr_df: pd.DataFrame, qbittorrent_df: pd.DataFrame, plex_df: pd.DataFrame, 
-                 RADARR_URL: str, RADARR_API_KEY: str, QB_USERNAME: str, QB_PASSWORD: str, QB_URL: str, 
+def prune_series(sonarr_df: pd.DataFrame, qbittorrent_df: pd.DataFrame, plex_df: pd.DataFrame, 
+                 SONARR_URL: str, SONARR_API_KEY: str, QB_USERNAME: str, QB_PASSWORD: str, QB_URL: str, 
                  delete=False) -> pd.DataFrame:
-    
     # Placeholder -- DO THIS
     return pd.DataFrame
 

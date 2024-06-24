@@ -12,5 +12,4 @@ Movies
 
 TV Series
 - Oldest episode added 1 year ago & never watched
-- Series that have ended and haven't been watched in 2 years
-- Series that aren't monitored and haven't been watched in 2 years
+- Unmonitored series that haven't been watched in 2 years

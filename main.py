@@ -108,20 +108,21 @@ def prune_movies(radarr_df: pd.DataFrame, qbittorrent_df: pd.DataFrame, plex_df:
                  delete=False) -> pd.DataFrame:
     d1 = datetime.today().date() - timedelta(days = 365*1)
     d2 = datetime.today().date() - timedelta(days = 365*2)
-    prune_movies_df = radarr_df.merge(
-        plex_df, 
-        how='inner', 
-        on='folder', 
-        suffixes=('_radarr', '_plex')
-    ) \
-    .merge(
-        qbittorrent_df, 
-        how='left', 
-        on='inode', 
-        suffixes=('_radarr', '_qbt')
-    ) \
-    .query(f'last_viewed.isnull() & added_on < @d1 | last_viewed < @d2') \
-    .reset_index(drop=True)
+    prune_movies_df = \
+        radarr_df.merge(
+            plex_df, 
+            how='inner', 
+            on='folder', 
+            suffixes=('_radarr', '_plex')
+        ) \
+        .merge(
+            qbittorrent_df, 
+            how='left', 
+            on='inode', 
+            suffixes=('_radarr', '_qbt')
+        ) \
+        .query(f'last_viewed.isnull() & added_on < @d1 | last_viewed < @d2') \
+        .reset_index(drop=True)
     
     # Delete movies from Radarr & qbt
     if delete:

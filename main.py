@@ -148,14 +148,49 @@ def prune_movies(radarr_df: pd.DataFrame, qbittorrent_df: pd.DataFrame, plex_df:
 def prune_series(sonarr_df: pd.DataFrame, qbittorrent_df: pd.DataFrame, plex_df: pd.DataFrame, 
                  SONARR_URL: str, SONARR_API_KEY: str, QB_USERNAME: str, QB_PASSWORD: str, QB_URL: str, 
                  delete=False) -> pd.DataFrame:
+    d1 = datetime.today().date() - timedelta(days = 365*1)
+    d2 = datetime.today().date() - timedelta(days = 365*2)
+    prune_series_df = \
+        sonarr_df.merge(
+            plex_df,
+            left_on='seriesfolder',
+            right_on='folder',
+            how='left',
+            suffixes=('_sonarr', '_plex')
+        ) \
+        .merge(
+            qbittorrent_df,
+            on='inode',
+            how='left',
+            suffixes=('_sonarr', '_qbt')
+        ) \
+        .query(f'(last_viewed.isnull() & added_on < @d1) | (monitored == False & last_viewed < @d2)') \
+        .reset_index(drop=True)
+
+    if delete:
+
+        prune_series_df['response_sonarr'] = \
+            prune_series_df['seriesId'] \
+            .apply(lambda x : requests.delete(
+                f'{SONARR_URL}/api/v3/series/{x}?deleteFiles=true', 
+                headers= {'X-Api-Key': SONARR_API_KEY}
+                ) \
+                .status_code
+            )
+        
+        qb = qbittorrentapi.Client(host=QB_URL, username=QB_USERNAME, password=QB_PASSWORD)
+        qb.auth_log_in()
+        prune_series_df['hash_qbt'].apply(lambda hash_qbt: qb.torrents_delete(delete_files=True, torrent_hashes=hash_qbt))
+        qb.auth.log_out()
+
     # Placeholder -- DO THIS
-    return pd.DataFrame
+    return prune_series_df
 
 def main(delete_media:bool) -> pd.DataFrame:
     if not os.path.exists('logs'):
         os.mkdir('logs')
         os.mkdir('logs/prune_movies')
-        os.mkdir('logs/prune_tv_shows')
+        os.mkdir('logs/prune_series')
 
     config = load_config()
 
@@ -197,7 +232,7 @@ def main(delete_media:bool) -> pd.DataFrame:
                                    SONARR_URL, SONARR_API_KEY, QB_USERNAME, QB_PASSWORD, QB_URL,
                                    delete=delete_media)
     
-    prune_series_df.to_csv(f'logs/prune_movies/{datetime.now().date().isoformat()}.csv', index=False)
+    prune_series_df.to_csv(f'logs/prune_series/{datetime.now().date().isoformat()}.csv', index=False)
 
     # consider combining prune_movies_df and prune_series_df
     return prune_movies_df

@@ -183,10 +183,12 @@ def prune_series(sonarr_df: pd.DataFrame, qbittorrent_df: pd.DataFrame, plex_df:
         prune_series_df['hash_qbt'].apply(lambda hash_qbt: qb.torrents_delete(delete_files=True, torrent_hashes=hash_qbt))
         qb.auth.log_out()
 
-    # Placeholder -- DO THIS
+    else:
+        prune_series_df['response_sonarr'] = 'Not Deleted'
+
     return prune_series_df
 
-def main(delete_media:bool) -> pd.DataFrame:
+def main(delete_media, prune_sonarr = True, prune_radarr = True) -> pd.DataFrame:
     if not os.path.exists('logs'):
         os.mkdir('logs')
         os.mkdir('logs/prune_movies')
@@ -221,21 +223,37 @@ def main(delete_media:bool) -> pd.DataFrame:
     sonarr_df.to_csv('sonarr_df.csv', index=False)
 
     # Prune movies from Radarr & qBittorrent
-    prune_movies_df = prune_movies(radarr_df, qbittorrent_df, plex_df,
-                                   RADARR_URL, RADARR_API_KEY, QB_USERNAME, QB_PASSWORD, QB_URL,
-                                   delete=delete_media)
+    if prune_radarr:
+        prune_movies_df = prune_movies(radarr_df, qbittorrent_df, plex_df,
+                                       RADARR_URL, RADARR_API_KEY, QB_USERNAME, QB_PASSWORD, QB_URL,
+                                       delete=delete_media)
 
-    prune_movies_df.to_csv(f'logs/prune_movies/{datetime.now().date().isoformat()}.csv', index=False)
+        prune_movies_df.to_csv(f'logs/prune_movies/{datetime.now().date().isoformat()}.csv', index=False)
+    else:
+        prune_movies_df = pd.DataFrame(columns = ['id_type', 'id', 'title', 'folder', 'added_on', 'size', 'torrent', 'path_qbt'])
+
+    if prune_sonarr:
+        prune_series_df = prune_series(sonarr_df, qbittorrent_df, plex_df,
+                                       SONARR_URL, SONARR_API_KEY, QB_USERNAME, QB_PASSWORD, QB_URL,
+                                       delete=delete_media)
+        
+        prune_series_df.to_csv(f'logs/prune_series/{datetime.now().date().isoformat()}.csv', index=False)
+    else:
+        prune_series_df = pd.DataFrame(columns = ['id_type', 'id', 'title', 'folder', 'added_on', 'size', 'torrent', 'path_qbt'])
+
+    prune_all_df = prune_series_df \
+    .assign(id_type='seriesId') \
+    .rename(columns = {'seriesId': 'id', 'title_sonarr': 'title', 'size_sonarr': 'size'}) \
+    .reindex(columns = ['id_type', 'id', 'title', 'folder', 'added_on', 'size', 'torrent', 'path_qbt']) \
+    .merge(
+        prune_movies_df.assign(id_type='movieId') \
+            .rename(columns={'id_radarr':'id', 'title_radarr': 'title', 'size_radarr': 'size'}) \
+            .reindex(columns = ['id_type', 'id', 'title', 'folder', 'added_on', 'size', 'torrent', 'path_qbt']),
+        how='outer'
+    )
 
 
-    prune_series_df = prune_series(sonarr_df, qbittorrent_df, plex_df,
-                                   SONARR_URL, SONARR_API_KEY, QB_USERNAME, QB_PASSWORD, QB_URL,
-                                   delete=delete_media)
-    
-    prune_series_df.to_csv(f'logs/prune_series/{datetime.now().date().isoformat()}.csv', index=False)
-
-    # consider combining prune_movies_df and prune_series_df
-    return prune_movies_df
+    return prune_all_df
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -259,6 +277,9 @@ def parse_args():
     parser.add_argument('--radarr',
                         help='Flag Radarr media',
                         action='store_true')
+    parser.add_argument('-a', '--all',
+                        help='Flag all media',
+                        action='store_true')
     args = parser.parse_args()
     return args
 
@@ -275,12 +296,23 @@ if __name__ == '__main__':
         logger.warning('Flagging files for deletion.')
     else:
         logger.warning('TEST RUN!! No files will be deleted.')
+    
 
-    if args.radarr or (not args.radarr and not args.sonarr):
-        prune_movies_df = main(delete_media=args.remove)
-        logger.warning(f'\n  Movies Deleted: \n    Count: {len(prune_movies_df)}\n    Size (GB): {round(sum(prune_movies_df['size_radarr'])/(1024**3), 2)}')
-        logger.info(f'\n  List: \n    {'\n    '.join([f'{movie} ({size/1024**3:.2f} GB)' for (movie, size) in zip(prune_movies_df['title_radarr'], prune_movies_df["size_radarr"])])}')
+    prune_all_df = main(args.remove, (args.sonarr or args.all), (args.radarr or args.all))
+    prune_all_df.to_csv('prune_all_df.csv')
+    logger.warning(f'''
+    Movies deleted:
+        Count: {len(prune_all_df[prune_all_df['id_type'] == 'movieId'])}
+        Size:  {prune_all_df[prune_all_df['id_type'] == 'movieId']['size'].sum() / (1024**3):0.2f} GB
 
-    if args.sonarr or (not args.radarr and not args.sonarr):
-        # prune_tv_df().....
-        pass
+    Series deleted:
+        Count: {len(prune_all_df[prune_all_df['id_type'] == 'seriesId']['id'].unique())}
+        Size:  {prune_all_df[prune_all_df['id_type'] == 'seriesId']['size'].sum() / (1024**3):0.2f} GB
+    ''')
+    logger.info(f'''
+    Movies deleted:
+        {'\n        '.join(f'{row.title} ({row.size/1024**3:0.2f} GB)' for row in prune_all_df.query('id_type == "movieId"')[['title', 'size']].itertuples())}
+    
+    Series deleted:
+        {'\n        '.join(f'{row.title} ({row.size/1024**3:0.2f} GB)' for row in prune_all_df.query('id_type == "seriesId"').reindex(columns=['title', 'size']).groupby('title').sum().reset_index().itertuples())}
+    ''')

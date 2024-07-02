@@ -300,7 +300,7 @@ if __name__ == '__main__':
 
     prune_all_df = main(args.remove, (args.sonarr or args.all), (args.radarr or args.all))
     prune_all_df.to_csv('prune_all_df.csv')
-    logger.warning(f'''
+    print(f'''
     Movies deleted:
         Count: {len(prune_all_df[prune_all_df['id_type'] == 'movieId'])}
         Size:  {prune_all_df[prune_all_df['id_type'] == 'movieId']['size'].sum() / (1024**3):0.2f} GB
